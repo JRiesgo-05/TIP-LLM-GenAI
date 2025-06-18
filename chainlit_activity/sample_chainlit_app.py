@@ -2,12 +2,14 @@
 # https://docs.chainlit.io/examples/qa
 
 import os
+from typing import List
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain.chains import (
     ConversationalRetrievalChain,
 )
+from langchain.schema import Document
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -54,11 +56,19 @@ async def on_chat_start():
     # Create a metadata for each chunk
     metadatas = [{"source": f"{i}-pl"} for i in range(len(texts))]
 
+    # Ensure db directory exists
+    db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "db", "chroma_db")
+    os.makedirs(db_dir, exist_ok=True)
+
     # Create a Chroma vector store
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     docsearch = await cl.make_async(Chroma.from_texts)(
-        texts, embeddings, metadatas=metadatas
+        texts, embeddings, metadatas=metadatas,
+        persist_directory=db_dir
     )
+
+    # Ensure the vector store is persisted
+    await cl.make_async(docsearch.persist)()
 
     message_history = ChatMessageHistory()
 
@@ -92,9 +102,9 @@ async def main(message: cl.Message):
 
     res = await chain.acall(message.content, callbacks=[cb])
     answer = res["answer"]
-    source_documents = res["source_documents"]  # type: List[Document]
+    source_documents: List[Document] = res["source_documents"]
 
-    text_elements = []  # type: List[cl.Text]
+    text_elements: List[cl.Text] = []
 
     if source_documents:
         for source_idx, source_doc in enumerate(source_documents):
