@@ -1,3 +1,6 @@
+# from the official cookbook from chainlit but modified to use Google Generative AI
+# https://docs.chainlit.io/examples/qa
+
 import os
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
